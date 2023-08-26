@@ -3,7 +3,7 @@ import Dependencies._
 name := "forex"
 version := "1.0.1"
 
-scalaVersion := "2.13.5"
+scalaVersion := "2.13.11"
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-encoding",
@@ -61,9 +61,12 @@ libraryDependencies ++= Seq(
   Libraries.circeGeneric,
   Libraries.circeGenericExt,
   Libraries.circeParser,
-  Libraries.pureConfig,
   Libraries.logback,
   Libraries.scalaTest        % Test,
   Libraries.scalaCheck       % Test,
   Libraries.catsScalaCheck   % Test
 )
+
+libraryDependencies += "com.github.pureconfig" %% "pureconfig" % "0.17.4"
+
+assembly / assemblyShadeRules := Seq(ShadeRule.rename("shapeless.**" -> "new_shapeless.@1").inAll)
