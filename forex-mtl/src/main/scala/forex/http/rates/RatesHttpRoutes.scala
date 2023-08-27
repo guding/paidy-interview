@@ -16,7 +16,16 @@ class RatesHttpRoutes[F[_]: Sync](rates: RatesProgram[F]) extends Http4sDsl[F] {
   private[http] val prefixPath = "/rates"
 
   private val httpRoutes: HttpRoutes[F] = HttpRoutes.of[F] {
-    case GET -> Root :? FromQueryParam(from) +& ToQueryParam(to) =>
+    case GET -> Root :? FromQueryParam(Left(fromError)) +& _ =>
+      BadRequest(s"Invalid 'from' currency: $fromError")
+
+    case GET -> Root :? _ +& ToQueryParam(Left(toError)) =>
+      BadRequest(s"Invalid 'to' currency: $toError")
+
+    case GET -> Root :? FromQueryParam(Right(from)) +& ToQueryParam(Right(to)) if from == to =>
+      BadRequest("The 'from' and 'to' currencies cannot be the same.")
+
+    case GET -> Root :? FromQueryParam(Right(from)) +& ToQueryParam(Right(to)) =>
       rates.get(RatesProgramProtocol.GetRatesRequest(from, to)).flatMap(Sync[F].fromEither).flatMap { rate =>
         Ok(rate.asGetApiResponse)
       }

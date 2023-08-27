@@ -16,6 +16,7 @@ object Dependencies {
     val scalaCheck     = "1.15.3"
     val scalaTest      = "3.2.7"
     val mockito        = "3.2.16.0"
+    val http4sTesting  = "0.23.22"
     val catsScalaCheck = "0.3.0"
   }
 
@@ -31,6 +32,7 @@ object Dependencies {
     lazy val http4sServer      = http4s("http4s-blaze-server")
     lazy val http4sCirce       = http4s("http4s-circe")
     lazy val http4sBlazeClient = http4s("http4s-blaze-client")
+    lazy val http4sTesting     = http4s("http4s-testing")
     lazy val circeCore         = circe("circe-core")
     lazy val circeGeneric      = circe("circe-generic")
     lazy val circeGenericExt   = circe("circe-generic-extras")
@@ -47,9 +49,9 @@ object Dependencies {
 
     // Test
     lazy val scalaTest      = "org.scalatest"     %% "scalatest"       % Versions.scalaTest
-    lazy val mockito        = "org.scalatestplus" %% "mockito-4-11"    % Versions.mockito
     lazy val scalaCheck     = "org.scalacheck"    %% "scalacheck"      % Versions.scalaCheck
     lazy val catsScalaCheck = "io.chrisdavenport" %% "cats-scalacheck" % Versions.catsScalaCheck
+    lazy val mockito        = "org.scalatestplus" %% "mockito-4-11"    % Versions.mockito
   }
 
 }

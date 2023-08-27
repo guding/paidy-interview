@@ -93,9 +93,9 @@ class RatesCache[F[_]: Sync: Timer](httpClient: Client[F], config: OneFrameApiCo
 
     httpClient.expect[List[OneFrameResponse]](request)(rateEntityDecoder).map { responses =>
       responses.map { response =>
-        Rate.Pair(Currency.fromString(response.from), Currency.fromString(response.to)) ->
+        Rate.Pair(Currency.fromString(response.from).toOption.get, Currency.fromString(response.to).toOption.get) ->
           Rate(
-            Rate.Pair(Currency.fromString(response.from), Currency.fromString(response.to)),
+            Rate.Pair(Currency.fromString(response.from).toOption.get, Currency.fromString(response.to).toOption.get),
             Price(response.price),
             Timestamp(response.time_stamp)
           )
