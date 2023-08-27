@@ -49,7 +49,7 @@ class RatesCache[F[_]: Sync: Timer](httpClient: Client[F], config: OneFrameApiCo
 
   private val underlyingCache: Cache[Rate.Pair, Rate] = Scaffeine()
     .recordStats()
-    .expireAfterWrite(10.minutes)
+    .expireAfterWrite(5.minutes)
     .maximumSize(1000)
     .build[Rate.Pair, Rate]()
 
