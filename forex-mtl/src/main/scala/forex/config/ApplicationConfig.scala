@@ -14,4 +14,3 @@ case class HttpConfig(
 )
 
 case class OneFrameApiConfig(endpoint: String, token: String)
-

@@ -4,6 +4,7 @@ package rates
 import cats.effect.Sync
 import cats.syntax.flatMap._
 import forex.programs.RatesProgram
+import forex.programs.rates.errors.Error.RateLookupFailed
 import forex.programs.rates.{ Protocol => RatesProgramProtocol }
 import org.http4s.HttpRoutes
 import org.http4s.dsl.Http4sDsl
@@ -26,8 +27,14 @@ class RatesHttpRoutes[F[_]: Sync](rates: RatesProgram[F]) extends Http4sDsl[F] {
       BadRequest("The 'from' and 'to' currencies cannot be the same.")
 
     case GET -> Root :? FromQueryParam(Right(from)) +& ToQueryParam(Right(to)) =>
-      rates.get(RatesProgramProtocol.GetRatesRequest(from, to)).flatMap(Sync[F].fromEither).flatMap { rate =>
-        Ok(rate.asGetApiResponse)
+      rates.get(RatesProgramProtocol.GetRatesRequest(from, to)).flatMap {
+        case Right(rate) => Ok(rate.asGetApiResponse)
+        case Left(programError) =>
+          programError match {
+            case RateLookupFailed(message) =>
+              NotFound(message)
+            case _ => InternalServerError("An unexpected error occurred.")
+          }
       }
   }
 

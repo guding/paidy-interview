@@ -4,6 +4,7 @@ import cats.effect._
 import forex.domain.{Currency, Price, Rate, Timestamp}
 import forex.programs.RatesProgram
 import forex.programs.rates.Protocol.GetRatesRequest
+import forex.programs.rates.errors.Error.{RateLookupFailed, UnexpectedError}
 import org.http4s._
 import org.http4s.implicits._
 import org.mockito.ArgumentMatchers.any
@@ -42,5 +43,30 @@ class RatesHttpRoutesTest extends AnyFlatSpec with Matchers {
     val response = routes.orNotFound.run(request).unsafeRunSync()
 
     response.status shouldBe Status.BadRequest
+  }
+
+  "GET /rates?from=EUR&to=USD" should "return an error if rate lookup fails" in {
+    val errorMessage = "EURUSD"
+    when(mockRates.get(any[GetRatesRequest])).thenReturn(
+      IO(Left(RateLookupFailed(errorMessage)))
+    )
+    val request = Request[IO](Method.GET, uri"/rates?from=EUR&to=USD")
+    val response = routes.orNotFound.run(request).unsafeRunSync()
+
+    response.status shouldBe Status.NotFound
+    val responseBody = new String(response.body.compile.toList.unsafeRunSync().toArray)
+    responseBody should be(errorMessage)
+  }
+
+  "GET /rates?from=EUR&to=USD" should "return an internal error for unexpected program errors" in {
+    when(mockRates.get(any[GetRatesRequest])).thenReturn(
+      IO(Left(UnexpectedError("")))
+    )
+    val request = Request[IO](Method.GET, uri"/rates?from=EUR&to=USD")
+    val response = routes.orNotFound.run(request).unsafeRunSync()
+
+    response.status shouldBe Status.InternalServerError
+    val responseBody = new String(response.body.compile.toList.unsafeRunSync().toArray)
+    responseBody should include("An unexpected error occurred.")
   }
 }
