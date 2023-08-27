@@ -64,10 +64,12 @@ libraryDependencies ++= Seq(
   Libraries.circeParser,
   Libraries.circeLiteral,
   Libraries.pureConfig,
+  Libraries.scaffeine,
   Libraries.logback,
   Libraries.scalaTest      % Test,
   Libraries.scalaCheck     % Test,
   Libraries.catsScalaCheck % Test,
+  Libraries.mockito        % Test,
   "com.github.cb372"       %% "scalacache-core" % "0.28.0"
 )
 

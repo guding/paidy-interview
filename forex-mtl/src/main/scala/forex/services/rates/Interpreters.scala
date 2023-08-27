@@ -1,13 +1,12 @@
 package forex.services.rates
 
-import cats.Applicative
 import cats.effect.Sync
-import forex.config.OneFrameApiConfig
-import interpreters._
-import org.http4s.client.Client
+import forex.domain.Rate
+import forex.services.RatesService
+import forex.services.rates.cache.CacheService
+import forex.services.rates.interpreters._
 
 object Interpreters {
-  def dummy[F[_]: Applicative]: Algebra[F] = new OneFrameDummy[F]()
-  def live[F[_] : Sync](client: Client[F], config: OneFrameApiConfig): Algebra[F] =
-    new OneFrameLive[F](client, config)
+  def live[F[_] : Sync](ratesCache: CacheService[F, Rate.Pair, Rate]): RatesService[F] =
+    new OneFrameLive[F](ratesCache)
 }

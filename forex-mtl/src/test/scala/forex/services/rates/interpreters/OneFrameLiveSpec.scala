@@ -1,80 +1,37 @@
-package forex.services.rates.interpreters
-
-import cats.effect.{ IO }
-import forex.config.OneFrameApiConfig
-import forex.domain.{ Currency, Price, Rate }
-import forex.services.rates.errors.Error.OneFrameLookupFailed
-import io.circe.literal.JsonStringContext
-import org.http4s._
-import org.http4s.circe._
-import org.http4s.client.Client
+import cats.effect.IO
+import forex.domain._
+import forex.services.rates.cache.CacheService
+import forex.services.rates.errors.Error.RateNotFound
+import forex.services.rates.interpreters.OneFrameLive
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
-class OneFrameLiveSpec extends AnyFlatSpec with Matchers {
+class OneFrameLiveSpec extends AnyFlatSpec with Matchers with MockitoSugar {
 
-  val mockResponseBody =
-    json"""
-      [
-        {
-          "from": "USD",
-          "to": "JPY",
-          "bid": 0.8025923738995486,
-          "ask": 0.44608644764413763,
-          "price": 0.6243394107718431,
-          "time_stamp": "2023-08-27T13:15:33.482Z"
-        }
-      ]
-    """
-  val unkownCurrencyResponseBody =
-    json"""
-      [
-        {
-            "from": "XYZ",
-            "to": "JPY",
-            "bid": 0.8025923738995486,
-            "ask": 0.44608644764413763,
-            "price": 0.6243394107718431,
-            "time_stamp": "2023-08-27T13:15:33.482Z"
-          }
-      ]
-    """
+  val mockRatesCache: CacheService[IO, Rate.Pair, Rate] = mock[CacheService[IO, Rate.Pair, Rate]]
+  val service                                           = new OneFrameLive[IO](mockRatesCache)
 
-  val bodyStream: fs2.Stream[IO, Byte] = EntityEncoder[IO, io.circe.Json].toEntity(mockResponseBody).body
-  val unkownCurrencyBodyStream: fs2.Stream[IO, Byte] =
-    EntityEncoder[IO, io.circe.Json].toEntity(unkownCurrencyResponseBody).body
+  "OneFrameLive" should "successfully fetch a rate from the cache" in {
+    val pair = Rate.Pair(Currency.USD, Currency.JPY)
+    val rate = Rate(pair, Price(BigDecimal(100)), Timestamp(java.time.OffsetDateTime.now))
 
-  val mockResponse: Response[IO] = Response[IO](
-    status = Status.Ok,
-    body = bodyStream
-  )
+    when(mockRatesCache.get(pair)).thenReturn(IO(Some(rate)))
 
-  val unknownCurrencyResponse: Response[IO] = Response[IO](
-    status = Status.Ok,
-    body = unkownCurrencyBodyStream
-  )
+    val result = service.get(pair).unsafeRunSync()
 
-  val testConfig = OneFrameApiConfig(endpoint = "http://mock.endpoint", token = "mock-token")
-
-  "OneFrameLive#get" should "fetch a rate successfully" in {
-    val mockHttpClient: Client[IO] = Client.fromHttpApp(HttpApp.pure(mockResponse))
-    val oneFrameService            = new OneFrameLive[IO](mockHttpClient, testConfig)
-
-    val result = oneFrameService.get(Rate.Pair(Currency.USD, Currency.JPY)).unsafeRunSync()
-
-    result should be(Symbol("right")) // It should be a Right indicating success
-    result.toOption.get.pair shouldEqual Rate.Pair(Currency.USD, Currency.JPY)
-    result.toOption.get.price shouldEqual Price(BigDecimal("0.6243394107718431"))
+    result shouldEqual Right(rate)
   }
 
-  it should "handle unknown currencies in the response" in {
+  it should "return an error if the rate is not found in the cache" in {
+    val pair = Rate.Pair(Currency.USD, Currency.EUR)
 
-    val clientWithUnknownCurrency = Client.fromHttpApp[IO](HttpApp.pure(unknownCurrencyResponse))
-    val service                   = new OneFrameLive[IO](clientWithUnknownCurrency, testConfig)
+    when(mockRatesCache.get(pair)).thenReturn(IO(None))
 
-    service.get(Rate.Pair(Currency.USD, Currency.JPY)).unsafeRunSync() match {
-      case Left(OneFrameLookupFailed(_)) => succeed
-      case _                             => fail("Expected an OneFrameLookupFailed error due to unknown currency")
-    }
+    val result = service.get(pair).unsafeRunSync()
+
+    result shouldBe a[Left[_, _]]
+    result.left.toOption.get shouldEqual RateNotFound(s"Rate not found for pair: $pair")
   }
 }

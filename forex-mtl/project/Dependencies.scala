@@ -9,12 +9,13 @@ object Dependencies {
     val http4s     = "0.21.22"
     val circe      = "0.13.0"
     val pureConfig = "0.17.4"
-    val scalaCache = "0.28.0"
+    val scaffeine  = "5.2.1"
 
     val kindProjector  = "0.10.3"
     val logback        = "1.2.3"
     val scalaCheck     = "1.15.3"
     val scalaTest      = "3.2.7"
+    val mockito        = "3.2.16.0"
     val catsScalaCheck = "0.3.0"
   }
 
@@ -36,7 +37,7 @@ object Dependencies {
     lazy val circeParser       = circe("circe-parser")
     lazy val circeLiteral      = circe("circe-literal")
     lazy val pureConfig        = "com.github.pureconfig" %% "pureconfig" % Versions.pureConfig
-    lazy val scalaCache        = "com.github.cb372" %% "scalacache-core" % Versions.scalaCache
+    lazy val scaffeine         = "com.github.blemale" %% "scaffeine" % Versions.scaffeine
 
     // Compiler plugins
     lazy val kindProjector = "org.typelevel" %% "kind-projector" % Versions.kindProjector
@@ -46,6 +47,7 @@ object Dependencies {
 
     // Test
     lazy val scalaTest      = "org.scalatest"     %% "scalatest"       % Versions.scalaTest
+    lazy val mockito        = "org.scalatestplus" %% "mockito-4-11"    % Versions.mockito
     lazy val scalaCheck     = "org.scalacheck"    %% "scalacheck"      % Versions.scalaCheck
     lazy val catsScalaCheck = "io.chrisdavenport" %% "cats-scalacheck" % Versions.catsScalaCheck
   }
