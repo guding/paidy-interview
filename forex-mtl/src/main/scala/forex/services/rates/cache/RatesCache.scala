@@ -1,11 +1,11 @@
 package forex.services.rates.cache
 
-import cats.effect.{Sync, Timer}
+import cats.effect.{ Sync, Timer }
 import cats.implicits._
-import com.github.blemale.scaffeine.{Cache, Scaffeine}
+import com.github.blemale.scaffeine.{ Cache, Scaffeine }
 import forex.config.OneFrameApiConfig
-import forex.domain.Currency.{AUD, CAD, CHF, EUR, GBP, JPY, NZD, SGD, USD}
-import forex.domain.{Currency, Price, Rate, Timestamp}
+import forex.domain.Currency.{ AUD, CAD, CHF, EUR, GBP, JPY, NZD, SGD, USD }
+import forex.domain.{ Currency, Price, Rate, Timestamp }
 import io.circe.Decoder
 import org.http4s.circe.jsonOf
 import org.http4s.client.Client
@@ -88,37 +88,42 @@ class RatesCache[F[_]: Sync: Timer](httpClient: Client[F], config: OneFrameApiCo
     val request = Request[F](
       method = Method.GET,
       headers = Headers.of(Header("token", config.token)),
-      uri = Uri
-        .unsafeFromString(uriStr)
+      uri = Uri.unsafeFromString(uriStr)
     )
 
     implicit val rateEntityDecoder: EntityDecoder[F, List[OneFrameResponse]] = jsonOf[F, List[OneFrameResponse]]
-    implicit val errorEntityDecoder: EntityDecoder[F, OneFrameErrorResponse] = jsonOf[F, OneFrameErrorResponse]
 
     httpClient.run(request).use {
       case Status.Successful(r) =>
-        r.attemptAs[List[OneFrameResponse]].leftMap(_.message).value.flatMap {
-          case Right(responses) =>
-            Sync[F].pure(responses.flatMap { response =>
-              toRatePair(response.from, response.to).map { pair =>
+        r.attemptAs[List[OneFrameResponse]].value.flatMap {
+          case Right(responses) => // We got a successful response from the api
+            val ratesMap = responses.collect {
+              case response if toRatePair(response.from, response.to).isDefined =>
+                val pair = toRatePair(response.from, response.to).get
                 pair -> Rate(pair, Price(response.price), Timestamp(response.time_stamp))
-              }
-            }.toMap)
-          case Left(_) =>
-            r.attemptAs[OneFrameErrorResponse].value.flatMap {
-              case Right(_) =>
-                // Log error in the future
-                Sync[F].pure(Map.empty[Rate.Pair, Rate])
-              case Left(_) =>
-                // Log error in the future
-                Sync[F].pure(Map.empty[Rate.Pair, Rate])
-            }
+            }.toMap
+            Sync[F].pure(ratesMap)
+          case Left(_) => // We either got an error body or some unexpected body from the api
+            handlePotentialError(r)
         }
-      case r =>
-        r.as[String].flatMap { _ =>
-          // Log error in the future
-          Sync[F].pure(Map.empty[Rate.Pair, Rate])
-        }
+      case _ => handleGeneralError // We got some unexpected status code from the api
     }
+  }
+
+  private def handlePotentialError(r: Response[F]): F[Map[Rate.Pair, Rate]] = {
+    implicit val errorEntityDecoder: EntityDecoder[F, OneFrameErrorResponse] = jsonOf[F, OneFrameErrorResponse]
+
+    r.attemptAs[OneFrameErrorResponse].value.flatMap {
+      case Right(_) => logAndReturnEmptyMap() // We got an error from the api we want to log
+      case Left(_)  => logAndReturnEmptyMap() // We got some unexpected body from the api we want to log
+    }
+  }
+
+  private def handleGeneralError: F[Map[Rate.Pair, Rate]] = logAndReturnEmptyMap() // We got some unexpected status code from the api we want to log
+
+  // Take a log message and use logger here in the future
+  private def logAndReturnEmptyMap(): F[Map[Rate.Pair, Rate]] = {
+    // Log error in the future using the message
+    Sync[F].pure(Map.empty[Rate.Pair, Rate])
   }
 }
